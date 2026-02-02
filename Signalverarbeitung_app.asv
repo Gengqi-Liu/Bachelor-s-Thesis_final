@@ -1,0 +1,151 @@
+function data = Signalverarbeitung_app(procParam)
+% Signalverarbeitung_app
+%
+% End-to-end RX processing pipeline (baseband conversion, sync, channel
+% estimation, equalization, bit recovery, and payload reconstruction).
+%
+% Input:
+%   procParam struct with fields:
+%     rxSignal          [Nsamp x Nr] recorded waveform (audioPlayerRecorder)
+%     fs                sample rate (= fDACFreq)
+%     iNfft, iNg, iNb
+%     iNoBlocks, iNewNoBlocks, iNoSubBlocks
+%     iNoTxAnt, iNoRxAnt
+%     iModOrd
+%     fBBFreq, fCarrFreq
+%     mimoMode
+%     codingMode
+%     channelEstimator
+%     equalizerMode
+%     len_cInfoBits     (optional) control/header bit length (default: 0)
+%     DatenTyp          'Bild'/'Image'/'Text'
+%     SendeDatei        original payload (image matrix or text)
+%
+% Output:
+%   data struct containing:
+%     text / bild
+%     numBitError, bitErrorRate
+%     plus intermediate PHY results returned by AnalyzeRxSig_app
+
+    %% 1) Unpack basic inputs
+    rxSignal = procParam.rxSignal;   % [Nsamp x Nr]
+    fs       = procParam.fs;
+
+    %% 2) Build parameter structs for PHY processing
+    params = struct( ...
+        'iNoBlocks',    procParam.iNoBlocks, ...
+        'iNfft',        procParam.iNfft, ...
+        'iNg',          procParam.iNg, ...
+        'iNb',          procParam.iNb, ...
+        'iModOrd',      procParam.iModOrd, ...
+        'iNoTxAnt',     procParam.iNoTxAnt, ...
+        'iNoRxAnt',     procParam.iNoRxAnt, ...
+        'iNewNoBlocks', procParam.iNewNoBlocks, ...
+        'iNoSubBlocks', procParam.iNoSubBlocks, ...
+        'fBBFreq',      procParam.fBBFreq, ...
+        'fDACFreq',     fs, ...
+        'fCarrFreq',    procParam.fCarrFreq, ...
+        'mimoMode',     procParam.mimoMode ...
+    );
+
+    if isfield(procParam,'len_cInfoBits')
+        len_cInfoBits = procParam.len_cInfoBits;
+    else
+        len_cInfoBits = 0;
+    end
+    if isfield(procParam,'origTxtLenBits')
+        origTxtLenBits=procParam.origTxtLenBits;
+    end
+
+
+    kanal = struct( ...
+        'len_cInfoBits', len_cInfoBits, ...
+        'code',          procParam.codingMode, ...
+        'schaetzer',     procParam.channelEstimator, ...
+        'entzerrer',     procParam.equalizerMode, ...
+        'origTxtLenBits', procParam.origTxtLenBits...
+    );
+
+    % --- Pass-through EigenMode matrices if provided ---
+    if isfield(params,'mimoMode') && strcmpi(strtrim(lower(string(params.mimoMode))), 'eigenmode')
+        if isfield(params,'V1') && ~isempty(params.V1)
+            % already present, do nothing
+        elseif exist('procParam','var') && isstruct(procParam) && isfield(procParam,'V1') && ~isempty(procParam.V1)
+            params.V1 = procParam.V1;
+        end
+    
+        if ~isfield(params,'U1') && exist('procParam','var') && isstruct(procParam) && isfield(procParam,'U1') && ~isempty(procParam.U1)
+            params.U1 = procParam.U1;
+        end
+        if ~isfield(params,'S1') && exist('procParam','var') && isstruct(procParam) && isfield(procParam,'S1') && ~isempty(procParam.S1)
+            params.S1 = procParam.S1;
+        end
+        if ~isfield(params,'EigenMeta') && exist('procParam','var') && isstruct(procParam) && isfield(procParam,'EigenMeta') && ~isempty(procParam.EigenMeta)
+            params.EigenMeta = procParam.EigenMeta;
+        end
+    end
+
+    %% 3) PHY processing: RF -> BB -> sync -> channel -> equalization -> bits
+    % AnalyzeRxSig_app expects rxFrame as [Nr x Nsamp]
+    [mEmpfDataBits, dataChan] = AnalyzeRxSig_app(rxSignal.', params, kanal);
+
+    data = dataChan;
+
+    %% 4) Bits -> payload reconstruction (text/image) + BER
+    dt = lower(string(procParam.DatenTyp));
+
+    switch dt
+        case {"bild","image"}
+            bild = bits2bild_app(mEmpfDataBits, kanal);
+            data.bild = bild;
+            data.text = '';
+        
+            % If image could not be reconstructed, skip BER computation
+            if isempty(bild)
+                warning('Signalverarbeitung_app: Image reconstruction failed (empty image). Skip BER.');
+                data.numBitError  = NaN;
+                data.bitErrorRate = NaN;
+                return;
+            end
+        
+            if isfield(procParam,'SendeDatei') && ~isempty(procParam.SendeDatei)
+                [data.numBitError, data.bitErrorRate] = ...
+                    bitFehlerRaten_app(bild, procParam.SendeDatei, procParam.DatenTyp);
+            else
+                data.numBitError  = NaN;
+                data.bitErrorRate = NaN;
+            end
+            
+        case "text"
+    % --- Fix 1: ensure bit length is multiple of 8 (byte aligned) ---
+    rxBits = mEmpfDataBits(:).';                 % force row
+    L = numel(rxBits);
+    L8 = floor(L/8)*8;                           % drop incomplete last byte
+    rxBits = rxBits(1:L8);
+
+    % --- Fix 2 (optional): if kanal carries the true payload length, crop to it ---
+    % You can add kanal.len_payload_bits on Tx side later for perfect trimming.
+    if isfield(kanal,'len_payload_bits') && ~isempty(kanal.len_payload_bits) && kanal.len_payload_bits > 0
+        Lp = floor(double(kanal.len_payload_bits)/8)*8;
+        rxBits = rxBits(1:min(Lp, numel(rxBits)));
+    end
+
+    [textDecoded, ~] = bits2text_app(rxBits, kanal);
+    data.text = textDecoded;
+    data.bild = [];
+
+    if isfield(procParam,'SendeDatei') && ~isempty(procParam.SendeDatei)
+        [data.numBitError, data.bitErrorRate] = ...
+            bitFehlerRaten_app(textDecoded, procParam.SendeDatei, procParam.DatenTyp);
+    else
+        data.numBitError  = NaN;
+        data.bitErrorRate = NaN;
+    end
+
+        otherwise
+            data.text = '(Unknown DatenTyp: cannot reconstruct payload)';
+            data.bild = [];
+            data.numBitError  = NaN;
+            data.bitErrorRate = NaN;
+    end
+end
