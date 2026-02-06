@@ -29,28 +29,8 @@ function [bits, AnzUeb, metaTxt, original_data_bits] = text2bits_app(SendeDatei,
     vBits_to_encode = tx_vBits;
     
     switch codingMode
-        case "Keine"
+        case "None"
             code_vBits = tx_vBits;
-    
-        case "Faltungscodes 2/3"
-            len_data = length(vBits_to_encode);
-    
-            if mod(len_data, 2)
-                vBits_to_encode = [vBits_to_encode, randi([0 1], 1, 5)];
-            else
-                vBits_to_encode = [vBits_to_encode, randi([0 1], 1, 4)];
-            end
-    
-            trel_23   = poly2trellis([4 3], [4 5 17; 7 4 2]);
-            code_vBits = convenc(vBits_to_encode, trel_23);
-    
-        case "Faltungscodes 1/2"
-            trel_12 = poly2trellis(3, [6 7]);
-            tblen   = 32;
-    
-            vBits_to_encode = [vBits_to_encode, randi([0 1], 1, tblen)];
-            code_vBits      = convenc(vBits_to_encode, trel_12);
-    
         otherwise
             warning('Unknown coding mode: %s. Using uncoded.', codingMode);
             code_vBits = tx_vBits;

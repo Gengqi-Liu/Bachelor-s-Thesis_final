@@ -1,12 +1,12 @@
-function [mEmpfDataBits, data] = AlamoutiRx_app(mFrameRxNoCP, params, kanal, len_cInfoBits)
+function [mEmpfDataBits, data] = AlamoutiRx_app(mFrameRxNoCP, params, channel, len_cInfoBits)
 %ALAMOUTIRX_APP  Alamouti RX (App version)
 % Inputs:
 %   mFrameRxNoCP : [iNfft x iNewNoBlocks x iNoRxAnt], CP already removed
 %   params       : struct, must contain at least
 %                  .iNoBlocks, .iNfft, .iNg, .iNb, .iNoTxAnt, .iNoRxAnt,
 %                  .fBBFreq, .fDACFreq, .fCarrFreq
-%   kanal        : struct, fields:
-%                  .schaetzer : 'Zero Forcing' | 'MMSE'
+%   channel        : struct, fields:
+%                  .estimator : 'Zero Forcing' | 'MMSE'
 %   len_cInfoBits: number of BPSK control bits
 %
 % Outputs:
@@ -129,7 +129,7 @@ function [mEmpfDataBits, data] = AlamoutiRx_app(mFrameRxNoCP, params, kanal, len
 
     vPreambleFreqCol = vPreambleFreq(:);  % [Nfft x 1]
 
-    useMMSE = strcmpi(kanal.schaetzer, 'MMSE');
+    useMMSE = strcmpi(channel.estimator, 'MMSE');
 
     for iCTxAnt = 1:iNoTxAnt
         for iCRxAnt = 1:iNoRxAnt
@@ -253,8 +253,8 @@ function [mEmpfDataBits, data] = AlamoutiRx_app(mFrameRxNoCP, params, kanal, len
     mEmpfDataBits = vBitsAll.'; 
 
     %% 10. Fill debug struct
-    data.kanalUeb      = mCTF;
-    data.kanalimpuls   = mCIR;
+    data.channelUeb      = mCTF;
+    data.channelimpuls   = mCIR;
     data.mDataRxEq     = mDataRxEq;    % [Tx x Nfft x NoBlocks]
 
     data.ta_TP         = 1 / fBBFreq;

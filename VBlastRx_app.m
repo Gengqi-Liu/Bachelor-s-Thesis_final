@@ -1,4 +1,4 @@
-function mDataRxEq = VBlastRx_app(mDataRx, mCTF, params, iSNR, kanal)
+function mDataRxEq = VBlastRx_app(mDataRx, mCTF, params, iSNR, channel)
 %VBlastRx_app
 % V-BLAST SIC detector per subcarrier.
 % Input:
@@ -7,7 +7,7 @@ function mDataRxEq = VBlastRx_app(mDataRx, mCTF, params, iSNR, kanal)
 %   params  : struct with fields:
 %             iNoBlocks, iNfft, iNoTxAnt, iNoRxAnt, iNoSubBlocks, iModOrd
 %   iSNR    : linear SNR estimate (used for MMSE)
-%   kanal   : struct with field kanal.entzerrer = 'Zero Forcing'|'MMSE'
+%   channel   : struct with field channel.equalizer = 'Zero Forcing'|'MMSE'
 %
 % Output:
 %   mDataRxEq : [iNoTxAnt x iNfft x iNoBlocks] equalized symbols
@@ -83,9 +83,9 @@ function mDataRxEq = VBlastRx_app(mDataRx, mCTF, params, iSNR, kanal)
 
             for it = 1:iNoTxAnt
                 % Linear filter on remaining system
-                if strcmpi(kanal.entzerrer, 'Zero Forcing')
+                if strcmpi(channel.equalizer, 'Zero Forcing')
                     G = pinv(Hrem);
-                elseif strcmpi(kanal.entzerrer, 'MMSE')
+                elseif strcmpi(channel.equalizer, 'MMSE')
                     NtRem = size(Hrem,2);
                     A = Hrem' * Hrem + eye(NtRem) * (1./iSNR);
                     if any(~isfinite(A(:))) || rcond(A) < 1e-10
@@ -93,7 +93,7 @@ function mDataRxEq = VBlastRx_app(mDataRx, mCTF, params, iSNR, kanal)
                     end
                     G = A \ (Hrem');
                 else
-                    error('VBlastRx_app: Unknown equalizer: %s', kanal.entzerrer);
+                    error('VBlastRx_app: Unknown equalizer: %s', channel.equalizer);
                 end
 
                 xSoft = G * yrem;  % [NtRem x 1]

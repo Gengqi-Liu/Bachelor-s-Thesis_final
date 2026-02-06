@@ -65,11 +65,11 @@ function data = Signalverarbeitung_app(procParam)
         origTxtLenBits = [];
     end
 
-    kanal = struct( ...
+    channel = struct( ...
         'len_cInfoBits',  len_cInfoBits, ...
         'code',           procParam.codingMode, ...
-        'schaetzer',      procParam.channelEstimator, ...
-        'entzerrer',      procParam.equalizerMode, ...
+        'estimator',      procParam.channelEstimator, ...
+        'equalizer',      procParam.equalizerMode, ...
         'origTxtLenBits', origTxtLenBits ...
     );
 
@@ -91,7 +91,7 @@ function data = Signalverarbeitung_app(procParam)
 
     % ---- PHY processing: RF -> BB -> sync -> channel -> equalization -> bits ----
     % AnalyzeRxSig_app expects rxFrame as [Nr x Nsamp]
-    [mEmpfDataBits, dataChan] = AnalyzeRxSig_app(rxSignal.', params, kanal);
+    [mEmpfDataBits, dataChan] = AnalyzeRxSig_app(rxSignal.', params, channel);
 
     data = dataChan;
 
@@ -100,7 +100,7 @@ function data = Signalverarbeitung_app(procParam)
     L8 = floor(numel(rxBits)/8) * 8; % drop incomplete last byte
     rxBits = rxBits(1:L8);
 
-    [textDecoded, ~] = bits2text_app(rxBits, kanal);
+    [textDecoded, ~] = bits2text_app(rxBits, channel);
     data.text = textDecoded;
 
     % ---- BER ----

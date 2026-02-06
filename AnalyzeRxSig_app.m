@@ -1,4 +1,4 @@
-function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, kanal)
+function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, channel)
 %ANALYZERXSIG_APP (text-only)
 % RX top-level:
 %   1) Downconvert to baseband
@@ -7,8 +7,8 @@ function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, kanal)
 %   4) Dispatch to MIMO-mode-specific RX
 
     % ---- Enforce text-only + fixed estimator/equalizer ----
-    kanal.schaetzer  = 'Zero Forcing';
-    kanal.entzerrer  = 'MMSE';
+    channel.estimator  = 'Zero Forcing';
+    channel.equalizer  = 'MMSE';
 
     % ---- Unpack parameters ----
     iNfft        = params.iNfft;
@@ -24,8 +24,8 @@ function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, kanal)
 
     mimoModeStr  = string(params.mimoMode);
 
-    if isfield(kanal,'len_cInfoBits') && ~isempty(kanal.len_cInfoBits)
-        len_cInfoBits = kanal.len_cInfoBits;
+    if isfield(channel,'len_cInfoBits') && ~isempty(channel.len_cInfoBits)
+        len_cInfoBits = channel.len_cInfoBits;
     else
         len_cInfoBits = 0;
     end
@@ -75,13 +75,13 @@ function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, kanal)
     iFrStart = iFrSync + iNfft - safetyMargin;
     iFrStart = max(1, min(iFrStart, Lbb));
 
-    n = 1:Lbb;
-    for iC = 1:iNoRxAnt
-        cfo = vCarOff(iC);
-        if isfinite(cfo) && ~isnan(cfo) && abs(cfo) > 0
-            mDataRxDem(iC,:) = mDataRxDem(iC,:) .* exp(-1j*2*pi/iNfft * cfo .* n);
-        end
-    end
+    % n = 1:Lbb;
+    % for iC = 1:iNoRxAnt
+    %     cfo = vCarOff(iC);
+    %     if isfinite(cfo) && ~isnan(cfo) && abs(cfo) > 0
+    %         mDataRxDem(iC,:) = mDataRxDem(iC,:) .* exp(-1j*2*pi/iNfft * cfo .* n);
+    %     end
+    % end
 
     %% 4) Cut OFDM blocks and remove CP
     maxSamplesAvail = Lbb - iFrStart + 1;
@@ -112,13 +112,13 @@ function [mEmpfDataBits, data] = AnalyzeRxSig_app(rxFrame, params, kanal)
     %% 5) Dispatch to mode-specific RX
     switch lower(mimoModeStr)
         case 'alamouti'
-            [mEmpfDataBits, dataMode] = AlamoutiRx_app(mFrameRxNoCP, params, kanal, len_cInfoBits);
+            [mEmpfDataBits, dataMode] = AlamoutiRx_app(mFrameRxNoCP, params, channel, len_cInfoBits);
 
         case {'spatial multiplexing','v-blast','vblast'}
-            [mEmpfDataBits, dataMode] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, kanal, len_cInfoBits);
+            [mEmpfDataBits, dataMode] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, channel, len_cInfoBits);
 
         case 'eigenmode'
-            [mEmpfDataBits, dataMode] = EigenModeRx_app(mFrameRxNoCP, params, kanal, len_cInfoBits);
+            [mEmpfDataBits, dataMode] = EigenModeRx_app(mFrameRxNoCP, params, channel, len_cInfoBits);
 
         otherwise
             error('AnalyzeRxSig_app: unsupported MIMO mode: %s', mimoModeStr);
@@ -145,12 +145,12 @@ end
 %% ========================================================================
 %% Subfunction: SM / V-BLAST RX (preamble extraction + channel est + MMSE EQ)
 %% ========================================================================
-function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, kanal, len_cInfoBits)
+function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, channel, len_cInfoBits)
 % mFrameRxNoCP : [iNfft x iNewNoBlocks x Nr]
 
     % ---- Enforce fixed modes ----
-    kanal.schaetzer = 'Zero Forcing';
-    kanal.entzerrer = 'MMSE';
+    channel.estimator = 'Zero Forcing';
+    channel.equalizer = 'MMSE';
 
     iNoBlocks     = params.iNoBlocks;
     iNfft         = params.iNfft;
@@ -250,7 +250,7 @@ function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, kanal, l
     mDataRxEq = zeros(iNoTxAnt, iNfft, iNoBlocks);
 
     if strcmpi(mimoModeStr,'v-blast') || strcmpi(mimoModeStr,'vblast')
-        kanal.entzerrer = 'MMSE';
+        channel.equalizer = 'MMSE';
         mDataRxEq = VBlastRx_app( ...
             mDataRx, ...
             mCTF, ...
@@ -263,7 +263,7 @@ function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, kanal, l
                 'iModOrd',      iModOrd ...
             ), ...
             iSNR, ...
-            kanal);
+            channel);
     else
         mDataRxFreq = 1/sqrt(iNfft) * fft(mDataRx, iNfft, 1);
         mDataRxFreq = permute(mDataRxFreq, [3,1,2]); % [Rx x SC x Block]
@@ -354,8 +354,8 @@ function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, kanal, l
 
     % ---- Debug ----
     data = struct();
-    data.kanalUeb     = mCTF;
-    data.kanalimpuls  = mCIR;
+    data.channelUeb     = mCTF;
+    data.channelimpuls  = mCIR;
     data.mDataRxEq    = mDataRxEq;
     data.AnzSubFrames = AnzSubFrames;
 end

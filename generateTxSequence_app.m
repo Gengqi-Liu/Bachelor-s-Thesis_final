@@ -102,7 +102,7 @@ function [mFrameTxCar, meta] = generateTxSequence_app(params, source)
             [mFrameTxCar, metaMode] = generateTx_EigenMode_app(params, mDataTxFreq, vPreambleTime);
         case 'alamouti'
             [mFrameTxCar, metaMode] = generateTx_Alamouti_app(params, mDataTxFreq, vPreambleTime);
-        case {'spatial multiplexing','v-blast','vblast'}
+        case {'spatial multiplexing','v-blast'}
             [mFrameTxCar, metaMode] = generateTx_SM_app(params, mDataTxFreq, vPreambleTime);
         otherwise
             [mFrameTxCar, metaMode] = generateTx_SM_app(params, mDataTxFreq, vPreambleTime);
