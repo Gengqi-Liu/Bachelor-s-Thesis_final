@@ -122,36 +122,25 @@ function [mEmpfDataBits, data] = AlamoutiRx_app(mFrameRxNoCP, params, channel, l
         iSNR = 1e4;
     end
 
-    %% 4. Channel estimation: ZF / MMSE
+    %% 4. Channel estimation: ZF only
     % Outputs: mCTF [Nfft x NoBlocks x Nr x Nt], mCIR same dims
     mCTF = zeros(iNfft, iNoBlocks, iNoRxAnt, iNoTxAnt);
     mCIR = zeros(iNfft, iNoBlocks, iNoRxAnt, iNoTxAnt);
-
+    
     vPreambleFreqCol = vPreambleFreq(:);  % [Nfft x 1]
-
-    useMMSE = strcmpi(channel.estimator, 'MMSE');
-
+    
     for iCTxAnt = 1:iNoTxAnt
         for iCRxAnt = 1:iNoRxAnt
-            snrCol = mSNR(:,iCRxAnt,iCTxAnt);  % [Nfft x 1]
-
             for iCB = 1:iNoBlocks
-                rxCol = mPreambleRxFreq(:,iCB,iCRxAnt,iCTxAnt);   % [Nfft x 1]
-
-                if ~useMMSE
-                    Hcol = rxCol ./ vPreambleFreqCol;
-                else
-                    den = abs(vPreambleFreqCol).^2 + 1./snrCol;
-                    den(den <= 0 | ~isfinite(den)) = eps;
-                    w   = conj(vPreambleFreqCol) ./ den;
-                    Hcol = w .* rxCol;
-                end
-
+                rxCol = mPreambleRxFreq(:,iCB,iCRxAnt,iCTxAnt); % [Nfft x 1]
+                Hcol  = rxCol ./ vPreambleFreqCol;             % ZF estimate
+    
                 mCTF(:,iCB,iCRxAnt,iCTxAnt) = Hcol;
                 mCIR(:,iCB,iCRxAnt,iCTxAnt) = sqrt(iNfft) * ifft(Hcol);
             end
         end
     end
+
 
     %% 5. Data FFT
     % mDataRx: [Nfft x 2*NoBlocks x Nr]
