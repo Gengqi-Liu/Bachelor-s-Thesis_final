@@ -69,13 +69,36 @@ function [txPreCar, metaPre] = generateEigenModePreamble_app(params)
     iNewNoBlocksPre = N * iNoTxAnt;
     metaPre.iNewNoBlocksPre = iNewNoBlocksPre;
 
-    PreambleFrameCp = zeros(iNb, iNewNoBlocksPre, iNoTxAnt);
-
+    % ---- Add CP per OFDM block (baseband) - robust for iNg > iNfft ----
+    iNewNoBlocksPre = N * iNoTxAnt;
+    metaPre.iNewNoBlocksPre = iNewNoBlocksPre;
+    
+    L = iNfft;   % useful symbol length
+    
+    % Preallocate with the ACTUAL CP+FFT length
+    iNb_used = iNfft + max(iNg,0);
+    PreambleFrameCp = zeros(iNb_used, iNewNoBlocksPre, iNoTxAnt);
+    
     for iC = 1:iNoTxAnt
-        tmp = reshape(PreambleFrame_lang(iC,:), iNfft, iNewNoBlocksPre);
-        PreambleFrameCp(:,:,iC) = [tmp(end-iNg+1:end,:); tmp];
+        tmp = reshape(PreambleFrame_lang(iC,:), iNfft, iNewNoBlocksPre); % [iNfft x nBlocks]
+    
+        if iNg <= 0
+            cpPart = zeros(0, size(tmp,2));
+        elseif iNg <= L
+            cpPart = tmp(end-iNg+1:end, :);
+        else
+            % iNg > L: cyclically repeat symbol tail
+            idx = mod((L - iNg):(L - 1), L) + 1;   % length iNg, in 1..L
+            cpPart = tmp(idx, :);
+        end
+    
+        PreambleFrameCp(:,:,iC) = [cpPart; tmp];
     end
-
+    
+    % Update iNb to match what we actually built (important for reshape)
+    iNb = size(PreambleFrameCp,1);
+    metaPre.iNbUsed = iNb;
+    
     mPreambleBB = reshape(PreambleFrameCp, iNb*iNewNoBlocksPre, iNoTxAnt);
 
     % ---- Head/tail silence in baseband ----

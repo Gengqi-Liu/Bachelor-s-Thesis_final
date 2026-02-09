@@ -101,10 +101,26 @@ function [mFrameTxCar, meta] = generateTx_Alamouti_app(params, mDataTxFreq, vPre
     meta.nColsPerBlock = nColsPerBlock;
     meta.nFrameCols    = nFrameCols;
 
-    %% 4) Add cyclic prefix to each OFDM symbol
-    % Result: [iNb x nFrameCols x 2]
-    mFrameBB = [mFrameTxTp(end-iNg+1:end,:,:); mFrameTxTp];
-    assert(size(mFrameBB,1) == iNb, 'generateTx_Alamouti_app: CP insertion produced unexpected iNb.');
+    %% 4) Add cyclic prefix (baseband) - robust for iNg > iNfft
+    % mFrameTxTp: [iNfft x nFrameCols x 2]
+    L = size(mFrameTxTp,1);   % useful symbol length (should be iNfft)
+    
+    if iNg <= 0
+        cpPart = zeros(0, size(mFrameTxTp,2), size(mFrameTxTp,3)); % empty CP
+    elseif iNg <= L
+        cpPart = mFrameTxTp(end-iNg+1:end,:,:);
+    else
+        % iNg > L: build CP by cyclically repeating the OFDM symbol tail
+        % idx has length iNg and values always in 1..L
+        idx = mod((L - iNg):(L - 1), L) + 1;
+        cpPart = mFrameTxTp(idx,:,:);
+    end
+    
+    mFrameBB = [cpPart; mFrameTxTp];   % [(iNg+iNfft) x nFrameCols x 2]
+    
+    % IMPORTANT: iNb must match the actual CP+FFT length now
+    iNb = size(mFrameBB,1);
+    meta.iNbUsed = iNb;                 % optional debug
 
     iNewNoBlocks = size(mFrameBB,2);
     meta.iNewNoBlocks = iNewNoBlocks;

@@ -84,15 +84,29 @@ function [mFrameTxCar, meta] = generateTx_EigenMode_app(params, mDataTxFreq, vPr
     % ---- A. Append tail of empty OFDM symbols ----
     mFrameTxTp = cat(2, mFrame, zeros(iNfft, 15, iNoTxAnt));
 
-    % ---- B. Add cyclic prefix (baseband) ----
-    mFrameBB = [mFrameTxTp(end-iNg+1:end,:,:); mFrameTxTp];  % [iNb x iNewNoBlocks x iNoTxAnt]
-
-    szBB              = size(mFrameBB);
-    iNewNoBlocks      = szBB(2);
+    % ---- B. Add cyclic prefix (baseband) - robust for iNg > iNfft ----
+    L = size(mFrameTxTp,1);   % useful symbol length (should be iNfft)
+    
+    if iNg <= 0
+        cpPart = zeros(0, size(mFrameTxTp,2), size(mFrameTxTp,3));
+    elseif iNg <= L
+        cpPart = mFrameTxTp(end-iNg+1:end,:,:);
+    else
+        % iNg > L: build CP by cyclically repeating the OFDM symbol tail
+        idx = mod((L - iNg):(L - 1), L) + 1;   % length iNg, indices in 1..L
+        cpPart = mFrameTxTp(idx,:,:);
+    end
+    
+    mFrameBB = [cpPart; mFrameTxTp];          % [(iNg+iNfft) x iNewNoBlocks x iNoTxAnt]
+    
+    % IMPORTANT: do NOT trust params.iNb here; use the actual built size
+    iNb_used          = size(mFrameBB,1);
+    iNewNoBlocks      = size(mFrameBB,2);
     meta.iNewNoBlocks = iNewNoBlocks;
-
+    meta.iNbUsed      = iNb_used;
+    
     % Serialize baseband payload
-    payloadBB = reshape(mFrameBB, iNb * iNewNoBlocks, iNoTxAnt);
+    payloadBB = reshape(mFrameBB, iNb_used * iNewNoBlocks, iNoTxAnt);
     meta.payloadLen = size(payloadBB,1);
 
     % ---- C. Insert Schmidl & Cox sync block ----
