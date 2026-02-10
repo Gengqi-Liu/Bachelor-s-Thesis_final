@@ -1,0 +1,45 @@
+% ======================================================================
+% Chapter 6 — Conclusion
+% ======================================================================
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The work presented in this thesis culminates in a fully functional and extensible acoustic MIMO--OFDM demonstrator that bridges theoretical physical-layer concepts and practical experimentation. Through systematic design choices and implementation-oriented refinement, the developed system enables controlled transmission experiments while preserving visibility into the internal signal-processing stages.
+
+Rather than aiming at performance optimization in an abstract sense, the demonstrator emphasizes interpretability, reproducibility, and configurability. These characteristics make it suitable both as an experimental platform for studying MIMO--OFDM behavior under realistic acoustic conditions and as a teaching-oriented tool for exploring the impact of design parameters and algorithmic decisions.
+
+\subsection{Summary of achieved objectives}
+\label{sec:conclusion_objectives}
+
+The thesis objectives defined in Chapter~1 have been met as follows.
+
+\paragraph{Objective 1: Adaptation to a multi-channel audio interface.}
+The demonstrator was successfully adapted to operate with a modern multi-channel audio interface, supporting simultaneous playback and recording across multiple loudspeaker and microphone channels. A stable streaming setup was achieved using frame-based audio I/O, with explicit handling of buffering, latency, and synchronization constraints. The resulting system enables repeatable transmission and reception of broadband OFDM waveforms in an acoustic environment, forming a reliable experimental basis for further signal processing and analysis.
+
+\paragraph{Objective 2: Migration and restructuring of the graphical user interface.}
+The legacy GUIDE-based GUI was migrated to MATLAB App Designer and restructured to clearly separate user interaction from signal-processing logic. The resulting application provides intuitive configuration of physical-layer parameters, mode selection, and execution control, while exposing a rich set of visualization and analysis tools. This modular design improves maintainability and extensibility, and aligns the software structure with current MATLAB development practices.
+
+\paragraph{Objective 3: Implementation and analysis of a MIMO-OFDM receiver chain.}
+A configurable receiver processing pipeline was implemented, including timing synchronization, carrier-frequency-offset compensation, channel estimation, MIMO equalization, symbol demapping, and payload reconstruction. The receiver supports spatial multiplexing operation with multiple estimation and equalization strategies and exposes intermediate quantities such as synchronization metrics, CIR/CTF estimates, equalized symbols, channel rank, and EVM. These outputs allow systematic evaluation of MIMO-OFDM behavior and form the core analytical contribution of the demonstrator.
+
+\subsection{Key outcomes and insights}
+\label{sec:conclusion_outcomes}
+
+The experimental results demonstrate that the implemented system operates stably in its main configuration (spatial multiplexing, 4T8R, 4-QAM, zero-forcing channel estimation, MMSE equalization, no channel coding) and reliably supports end-to-end text transmission. Beyond payload recovery, the system provides a coherent set of physical-layer observables whose behavior is consistent with theoretical expectations for frequency-selective MIMO channels.
+
+In particular, the combination of channel estimation, rank analysis, and symbol-domain quality metrics illustrates how spatial multiplexing performance varies across subcarriers and spatial streams. The availability of such intermediate results is especially valuable in an educational context, where understanding system behavior is often more important than optimizing absolute performance figures.
+
+\subsection{Consolidation and future perspectives}
+\label{sec:conclusion_future}
+
+From an engineering perspective, the most relevant outcome of this thesis is not the optimization of a single transmission configuration, but the creation of a \emph{structured, extensible, and transparent} MIMO-audio demonstrator. The current implementation intentionally focuses on a stable baseline configuration and on exposing intermediate physical-layer observables in a form that is easy to inspect, visualize, and reason about.
+
+Some limitations of the present system naturally follow from this design focus. Advanced features such as channel coding, alternative estimation or equalization strategies, and extended performance metrics are not emphasized in the current evaluation. These aspects are not treated as deficiencies of the system, but rather as conscious design boundaries chosen to preserve clarity, robustness, and didactic value.
+
+At the same time, the modular signal-processing pipeline, the centralized data management, and the GUI-based visualization framework provide a solid foundation for future extensions. The clear separation between transmission, reception, analysis, and visualization enables new functionality to be added with minimal structural changes. Examples include the integration of additional MIMO modes, alternative channel estimators and equalizers, larger or more diverse payload types, and more advanced interaction concepts.
+
+Beyond algorithmic extensions, the developed user interface plays a central role in enabling future experimentation. By offering direct access to key parameters and by visualizing intermediate results in a consistent manner, the demonstrator lowers the barrier for iterative development, comparative studies, and exploratory “what-if” experiments. This makes the system well suited not only for further technical enhancement, but also as a reusable platform in laboratory exercises and project-based teaching.
+
+\paragraph{Concluding remark.}
+In summary, this thesis demonstrates that a carefully structured software design, combined with a transparent user interface and a reproducible experimental workflow, can transform an audio-based MIMO-OFDM system into a versatile exploration platform. Rather than aiming for maximal performance, the developed demonstrator prioritizes insight, extensibility, and usability—thereby providing a practical bridge between communication theory and hands-on experimentation, and a flexible starting point for future development.

@@ -1,0 +1,405 @@
+% ======================================================================
+% Chapter 3 — Methodology (Final English LaTeX, with citations + figures + tables)
+% ======================================================================
+
+\section{Methodology: System Adaptation and Development}
+\label{ch:methodology}
+
+The work presented in this chapter translates the signal models and system concepts introduced in Chapter~2 into a concrete, executable acoustic MIMO--OFDM demonstrator. Rather than pursuing implementation optimality in the sense of a real-time communication prototype, the methodology emphasizes reproducibility, transparency, and controlled experimentation. 
+
+Three tightly coupled aspects are addressed throughout the chapter. First, the existing software framework is adapted to a modern multi-channel audio interface, enabling synchronized playback and recording across multiple loudspeakers and microphones. Second, the graphical user interface is restructured using MATLAB App Designer to provide a stable orchestration layer for parameter control, execution flow, and result visualization. Third, the physical-layer processing chain is organized such that different MIMO transmission modes and receiver algorithms can be executed, analyzed, and compared under identical conditions.
+
+The focus is therefore not on isolated algorithmic blocks, but on how hardware interfacing, parameter management, and signal processing are combined into a coherent and extensible experimental system.
+
+\subsection{System-level workflow and design principles}
+\label{sec:sys_workflow}
+
+At the system level, the acoustic MIMO demonstrator follows a closed-loop transmission--reception workflow that mirrors the structure of a conventional digital communication link while remaining explicitly tailored to offline analysis and teaching-oriented use. Each experiment begins with a user-defined configuration of physical-layer (PHY) parameters via the graphical user interface. These parameters determine the waveform structure and receiver processing, including the OFDM frame layout, modulation order, number of transmit and receive channels, selected MIMO mode, and the channel estimation and equalization strategies.
+
+Based on this configuration, a multi-channel transmit waveform is generated in MATLAB, emitted through the audio interface and loudspeaker array, recorded simultaneously by multiple microphones, and subsequently processed in a single receiver pass. The receiver recovers the transmitted payload and, at the same time, exposes a rich set of intermediate observables such as synchronization metrics, channel responses, equalized symbols, and performance indicators. This tight integration between transmission, reception, and analysis is a defining characteristic of the demonstrator.
+
+Within this work, the term \emph{physical-layer (PHY) parameters} refers to all configuration variables that directly influence waveform generation and sample- or symbol-level signal processing. This includes, among others, the FFT size and cyclic prefix length of the OFDM system, the modulation order, the number of transmit and receive channels, the selected MIMO transmission scheme, and the receiver-side estimation and equalization methods. Together, these parameters instantiate the mathematical signal models introduced in Chapter~2 and correspond to the PHY abstraction commonly used in communication system design \cite{proakis2008digital,tse2005fundamentals}.
+
+A deliberate design decision is the use of \emph{offline} or \emph{nearline} receiver processing. While audio playback and recording are performed in a streaming fashion, all receiver-side signal processing steps—such as synchronization, channel estimation, equalization, and demodulation—are executed only after an entire frame has been captured. As a result, no strict real-time constraints are imposed on algorithm execution. This allows the use of computationally intensive operations, including FFT-based OFDM demodulation, singular value decomposition in EigenMode operation, and successive interference cancellation in V-BLAST detection, without risking system instability. At the same time, this approach ensures repeatable behavior and facilitates controlled comparisons between different algorithmic configurations.
+
+The audio input/output loop itself must nevertheless operate reliably during streaming. Playback and recording are implemented using frame-based processing with a configurable frame length. In this context, underruns and overruns may occur if the host system cannot supply or retrieve audio data at the required rate, a well-known phenomenon in non-real-time audio systems running on general-purpose operating systems \cite{mathworks_apr,mathworks_audio_buffering}. In the demonstrator, such events are explicitly monitored and reported to the user, but they do not abort the experiment. This behavior reflects the educational orientation of the system: continuity of operation and transparency about system limitations are prioritized over strict real-time guarantees.
+
+A central architectural principle underlying the entire implementation is the strict separation between GUI orchestration and signal-processing functionality. The graphical user interface manages user interaction, parameter validation, execution control, and visualization of results. In contrast, waveform generation, audio input/output, and receiver processing are implemented as standalone MATLAB functions operating on explicitly defined input and output structures. Communication between the GUI and the processing backend is realized exclusively through structured parameter passing rather than implicit shared state. 
+
+This modular organization improves code readability and maintainability, simplifies debugging, and allows individual components—such as channel estimators, equalizers, or visualization routines—to be modified or extended without affecting the overall system structure. As a result, the demonstrator can evolve alongside future hardware upgrades and algorithmic extensions while retaining a clear and robust software architecture.
+\subsection{Objective 1: Adapting the software to the new multi-channel audio interface}
+\label{sec:hw_adaptation}
+
+A prerequisite for meaningful acoustic MIMO experiments is a hardware and software I/O chain that provides \emph{synchronous}, \emph{repeatable}, and \emph{traceable} multi-channel playback and recording. The legacy demonstrator setup relied on loosely integrated measurement and audio components, which made channel-to-channel alignment and reproducibility harder to guarantee and also introduced a number of implicit, partially hard-coded software assumptions. The upgraded platform replaces this setup with a single integrated multi-channel audio interface and a consistent loudspeaker/microphone front-end. As a consequence, the software can treat the audio device as a well-defined multi-channel ``RF front-end'' with a single sampling clock and explicit channel mapping.
+
+\subsubsection{Hardware platform upgrade and its implications}
+\label{sec:hw_upgrade}
+
+The upgraded demonstrator is built around a Focusrite Scarlett 18i20 audio interface, providing multiple synchronized analog input and output channels driven by a single device clock. From a MIMO signal-processing perspective, this is essential: it eliminates inter-device sampling-clock drift and ensures that all transmit and receive channels are aligned on the same sample grid. Compared to the previous solution based on external supplies and separate routing via a National Instruments BNC-2110, the integrated interface reduces wiring complexity and, more importantly, removes a class of avoidable timing and channel-mismatch issues that would otherwise contaminate MIMO-OFDM observations.
+
+The loudspeaker and microphone front-end was upgraded accordingly. Genelec 8010 active loudspeakers provide a largely linear response and low distortion in the relevant audio band, which improves the interpretability of receiver metrics (e.g., CIR/CTF, EVM) by reducing hardware-induced nonlinear artifacts. The t.bone SC140 condenser microphones offer a comparatively low noise floor and consistent sensitivity across channels, which is particularly beneficial for multi-channel channel estimation and for spatial processing where relative amplitude/phase relationships matter.
+
+Overall, the upgraded platform improves linearity, channel consistency, and synchronization accuracy. This shifts observed impairments toward the actual acoustic propagation environment and the implemented receiver algorithms, rather than toward avoidable hardware and integration artifacts.
+
+\begin{table}[t]
+\centering
+\caption{Comparison between the legacy and the upgraded hardware platforms used in the acoustic MIMO demonstrator.}
+\label{tab:hw_comparison}
+\begin{tabular}{p{0.32\linewidth}p{0.30\linewidth}p{0.30\linewidth}}
+\hline
+Aspect & Legacy setup & Upgraded setup \\
+\hline
+System integration & NI BNC-2110 with external power supply & Integrated multi-channel audio interface \\
+Clock synchronization & Implicit, wiring-dependent & Hardware-level common device clock \\
+ADC/DAC quality & Basic measurement grade & High-quality audio-grade converters \\
+Loudspeakers & Generic consumer-grade & Genelec 8010 near-field monitors \\
+Microphones & Generic microphones & t.bone SC140 condenser microphones \\
+Linearity and distortion & Limited, noticeable nonlinear effects & Improved linearity and reduced distortion \\
+Software assumptions & Fixed and partially hard-coded & Fully parameterized and configurable \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Software-level audio I/O interface and channel mapping}
+\label{sec:apr_interface}
+
+On the software side, the upgraded hardware is interfaced through MATLAB’s \path{audioPlayerRecorder} System object, which supports synchronous multi-channel playback and recording on a single device \cite{mathworks_apr}. In the demonstrator, this audio I/O layer is intentionally treated as a narrow and explicit contract between the signal-processing code and the hardware. The contract is defined by the sample rate $f_s$, the number of active transmit and receive channels $(N_{\mathrm{T}}, N_{\mathrm{R}})$, the audio frame length $L$ used for streaming, and the device identifier \path{deviceName}. In the App Designer implementation, these values are maintained as GUI-controlled app properties (e.g., \path{app.fDACFreq}, \path{app.iNoTxAnt}, \path{app.iNoRxAnt}) and passed explicitly into the I/O function.
+
+\begin{table}[t]
+\centering
+\caption{Software-level audio I/O parameters defining the interface between MATLAB and the audio hardware.}
+\label{tab:audio_config}
+\begin{tabular}{ll}
+\hline
+Parameter & Meaning \\
+\hline
+$f_s$ (\path{fs}) & Audio sampling rate (common device clock) \\
+$N_{\mathrm{T}}$ (\path{Nt}) & Number of transmit channels (loudspeakers) \\
+$N_{\mathrm{R}}$ (\path{Nr}) & Number of receive channels (microphones) \\
+$L$ (\path{frameLen}) & Frame length (samples per I/O call) \\
+\path{deviceName} & Driver/device identifier (platform-dependent) \\
+\hline
+\end{tabular}
+\end{table}
+
+Channel mapping is made explicit rather than implicit. In \path{runScarlettMimoIO}, playback and recording are configured with
+\path{PlayerChannelMapping = 1:Nt} and \path{RecorderChannelMapping = 1:Nr}.
+This design decision directly supports reproducible experiments: once the physical cabling is fixed, the software mapping defines a stable interpretation of ``Tx1..Tx$N_{\mathrm{T}}$'' and ``Rx1..Rx$N_{\mathrm{R}}$'' across operating systems and driver configurations. In the GUI workflow, these mappings are consistent with how the transmit waveform is generated (matrix \path{txSig} with $N_{\mathrm{T}}$ columns) and how the received waveform is stored (matrix \path{rx\_raw} with $N_{\mathrm{R}}$ columns and \path{app.RxSequence}).
+
+\subsubsection{Frame-based streaming, underrun/overrun monitoring, and fallback mode}
+\label{sec:streaming}
+
+Audio playback and recording are executed using frame-based streaming to the device. The transmit waveform
+$\mathbf{x}_{\mathrm{tx}} \in \mathbb{R}^{N_{\mathrm{samples}} \times N_T}$
+is segmented into contiguous blocks of length $L$ and passed to \path{audioPlayerRecorder} in a loop. Each I/O call returns the recorded frame
+$\mathbf{y}_{\mathrm{rx}} \in \mathbb{R}^{L \times N_R}$,
+together with underrun/overrun indicators. These events occur if the host system cannot deliver or acquire audio data at the required rate, a known effect in non-real-time audio processing \cite{mathworks_apr,mathworks_audio_buffering}. In the demonstrator, underruns and overruns are surfaced via warnings but do not abort the experiment, reflecting the teaching-oriented goal of maintaining continuity while still making I/O quality visible.
+
+To support development without guaranteed access to the physical device, \path{runScarlettMimoIO} includes a fallback path: if the device cannot be opened, the system switches to an ideal loopback in which the receive buffer is filled by copying the transmitted channels (up to \path{min(Nt,Nr)}). This ``simulation mode'' keeps the end-to-end software pipeline executable and enables debugging of framing, synchronization, and receiver visualization without hardware dependencies. In the App Designer workflow, the device-selection logic is encapsulated (e.g., \path{app.getAudioDeviceName}), and the transmission callback reports whether the real device or fallback mode was used.
+
+\subsubsection{Amplitude protection and traceability via audio logging}
+\label{sec:amplitude_logging}
+
+Because multi-channel audio interfaces and loudspeakers can saturate easily, transmit-side amplitude protection is applied immediately before playback. In \path{runScarlettMimoIO}, the waveform is constrained to its real part (the physical audio output is real-valued), peak-normalized to avoid clipping, and scaled by a fixed linear gain (\path{txGain = 0.7}) to provide headroom. This step prevents inadvertent saturation that would otherwise introduce nonlinear distortion and invalidate the interpretation of channel estimates and constellation-based metrics.
+
+For traceability and reproducibility, both transmitted and recorded signals are logged to disk as multi-channel WAV files (\path{tx\_last.wav}, \path{rx\_last.wav}). These recordings serve two roles: they enable offline inspection of the raw audio I/O path independent of the receiver chain, and they allow repeated processing of identical recorded data when validating algorithmic changes. This logging mechanism is therefore treated as part of the experimental methodology rather than a purely auxiliary debugging feature.
+
+\subsection{Objective 2: Porting and restructuring the GUI using MATLAB App Designer}
+\label{sec:gui_porting}
+
+\subsubsection{Motivation for migration and architectural objectives}
+\label{sec:gui_motivation}
+
+The original version of the acoustic MIMO demonstrator relied on MATLAB GUIDE for graphical user interface development. As GUIDE has been deprecated and removed from recent MATLAB releases, a migration to MATLAB App Designer was required to ensure long-term maintainability and compatibility with current MATLAB versions \cite{mathworks_guide_removed,mathworks_goodbye_guide}.
+
+Rather than reproducing the legacy interface on a component-by-component basis, the GUI was fundamentally restructured. The redesign treats the GUI as an orchestration layer for the physical-layer processing chain, instead of a passive visualization front end. In this role, the GUI is responsible for parameter management, execution control, and controlled access to intermediate and final processing results.
+
+This architectural shift reflects the primary purpose of the demonstrator: enabling systematic experimentation and algorithmic analysis. Consequently, the GUI design prioritizes transparency, reproducibility, and extensibility over feature density or real-time interactivity.
+
+Figure~\ref{fig:gui_overview} provides a global view of the redesigned GUI.
+Rather than serving as a passive control panel, the interface mirrors the logical structure of the experimental workflow.
+System configuration, transmission control, receiver inspection, and analytical evaluation are spatially separated, which directly supports reproducible experimentation and structured exploration of PHY-layer behavior.
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/ch3/ui.png}
+    \caption{Overview of the MATLAB App Designer–based graphical user interface of the acoustic MIMO demonstrator.
+    The interface is structured into four functional panels: system parameter configuration, data selection and transmission control, receiver output inspection, and analysis and visualization of intermediate PHY metrics.
+    This layout reflects the separation between configuration, execution, and evaluation stages in the experimental workflow.}
+    \label{fig:gui_overview}
+\end{figure}
+
+\subsubsection{Event-driven workflow and separation of concerns}
+\label{sec:gui_event_driven}
+
+The application is implemented as a class-based MATLAB App Designer app, following an event-driven programming model. User interactions are handled through callback functions associated with specific GUI elements, such as buttons, drop-down menus, and numeric edit fields.
+
+A central design principle is the strict separation between control logic and numerical signal processing. GUI callbacks do not perform physical-layer computations themselves. Instead, they validate preconditions, collect user-selected parameters, invoke dedicated processing functions, and store the resulting data structures.
+
+This workflow is exemplified by the callback \path{StartTransmissionButtonPushed}. When triggered, the callback assembles all relevant system and PHY parameters from the app state, initiates waveform generation and audio I/O, and subsequently triggers receiver-side processing. The complete physical-layer processing chain is executed in external functions, keeping the GUI layer free of algorithm-specific code.
+
+All receiver outputs are stored in the centralized app property \path{app.RxAnalysisData}. This structure serves as the single source of truth for subsequent analysis and visualization steps, including constellation diagrams, EVM plots, BER evaluation, channel impulse and transfer responses, and channel-rank statistics. By enforcing centralized data storage, the design avoids hidden dependencies between callbacks and ensures consistent access to processing results.
+
+\subsubsection{Graphical layout as a reflection of the signal-processing pipeline}
+\label{sec:gui_layout_pipeline}
+
+The spatial organization of the graphical user interface is intentionally aligned with the structure of the underlying signal-processing pipeline.
+Rather than grouping controls by implementation detail, the interface is arranged according to the logical stages of a MIMO--OFDM experiment.
+
+System-level and physical-layer parameters are concentrated in the left panel, reflecting the fact that these parameters define the signal model and must be fixed prior to transmission.
+The central panels are dedicated to data selection, transmission execution, and receiver output inspection, corresponding to the sequential flow from waveform generation to payload recovery.
+Finally, the analysis panel on the right exposes intermediate PHY metrics such as synchronization results, channel responses, constellation diagrams, EVM, and channel rank.
+
+This left-to-right layout mirrors the causal progression of the processing chain and allows users to relate algorithmic choices directly to observable effects.
+As a result, the GUI does not merely provide access to functionality, but acts as a visual representation of the end-to-end MIMO--OFDM receiver structure, reinforcing the educational and exploratory objectives of the demonstrator.
+
+\subsubsection{Global parameter management and state consistency}
+\label{sec:gui_state_management}
+
+All system and PHY parameters are maintained as properties of the app object. These include OFDM parameters (FFT length, cyclic prefix length, number of blocks and sub-blocks), MIMO configuration (number of transmit and receive channels, transmission mode), modulation settings, and frequency-related parameters.
+
+Each GUI control element is connected to a dedicated \path{ValueChangedFcn} callback that performs basic input validation and immediately updates the corresponding internal property. As a result, the internal application state remains consistent at all times, and parameter changes are propagated deterministically throughout the system.
+
+Certain parameter changes additionally trigger dependent updates. For example, modifications to the modulation order or antenna configuration automatically recompute the recommended number of OFDM blocks. Changes to the antenna configuration also invalidate previously estimated EigenMode channel information, which is explicitly cleared from the app state to enforce a new channel sounding step. These mechanisms prevent inconsistent parameter combinations and stale channel-dependent data.
+
+\subsubsection{GUI-driven configuration of transmission and reception methods}
+\label{sec:gui_method_selection}
+
+The GUI provides explicit controls for configuring both transmission and reception strategies. Supported MIMO transmission modes include spatial multiplexing, Alamouti coding, V-BLAST, and EigenMode transmission. Channel estimation and equalization methods are selected via drop-down menus and stored as string identifiers within the app state.
+
+The GUI does not interpret these selections internally. Instead, the chosen options are forwarded unchanged to the processing functions via structured parameter passing. This approach keeps the receiver implementation independent of the GUI while still enabling flexible experimentation with different algorithmic configurations.
+
+\begin{table}[t]
+\centering
+\caption{Representative GUI features supporting methodical experimentation.}
+\label{tab:gui_features}
+\begin{tabular}{p{0.32\linewidth}p{0.60\linewidth}}
+\hline
+Feature group & Implemented functionality \\
+\hline
+System parameters & FFT size, CP length, $N_{\mathrm{T}}/N_{\mathrm{R}}$, carrier and sampling rate \\
+Transmission modes & Spatial multiplexing, Alamouti, EigenMode, V-BLAST \\
+Execution control & Separate triggers for transmission and receiver processing \\
+Analysis tools & Channel responses, constellations, EVM, BER, rank metrics \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Structured parameter interface via \texttt{procParam}}
+\label{sec:procparam_interface}
+
+The structured variable \texttt{procParam} defines a stable and explicit interface between the GUI layer and the signal-processing backend. It encapsulates all information required for receiver processing, including the recorded waveform, system parameters, algorithm selections, and payload metadata.
+
+By relying on structured parameter passing rather than global variables, the processing functions can be tested and debugged independently of the GUI. This design also simplifies future extensions, as additional parameters can be added to \texttt{procParam} without modifying the overall application architecture.
+
+For EigenMode operation, channel-dependent matrices obtained from the sounding phase—such as precoding and decoding matrices and singular values—are included in \texttt{procParam}. This ensures that the receiver processing stage has access to all required channel information in a controlled and reproducible manner.
+
+\begin{table}[t]
+\centering
+\caption{Key fields of \texttt{procParam} used for receiver processing.}
+\label{tab:procparam_fields}
+\begin{tabular}{p{0.34\linewidth}p{0.58\linewidth}}
+\hline
+Field & Description \\
+\hline
+\texttt{rxSignal} & Recorded signal matrix $[N_\text{samp} \times N_R]$ \\
+\texttt{fs} & Sampling rate ($f_s$) \\
+\texttt{iNfft,iNg,iNb} & OFDM parameters (FFT size, CP length, block length) \\
+\texttt{iNoTxAnt,iNoRxAnt} & Number of transmit and receive channels \\
+\texttt{iModOrd} & Modulation order (bits per symbol) \\
+\texttt{mimoMode} & Selected MIMO transmission scheme \\
+\texttt{channelEstimator} & Channel estimation method \\
+\texttt{equalizerMode} & Equalization method \\
+\texttt{DatenTyp,SendeDatei} & Payload type and original data \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Methodological implications}
+\label{sec:gui_method_implications}
+
+The event-driven GUI architecture enforces a clear separation between user interaction and physical-layer signal processing. This separation supports systematic experimentation under well-defined conditions and enables individual components of the processing chain to be extended or replaced without modifying the GUI logic itself.
+
+As a result, the GUI functions not merely as a user interface, but as an integral methodological component of the demonstrator. It provides a stable framework in which different algorithms, parameter sets, and transmission modes can be explored in a controlled and reproducible manner.
+
+\begin{algorithm}[t]
+\caption{GUI-driven execution flow for receiver processing}
+\label{alg:gui_execution}
+\begin{algorithmic}[1]
+\Require Recorded multi-channel signal $\mathbf{y}_{\mathrm{rx}}$ (if available), GUI configuration state
+\Ensure Decoded payload and analysis structure \texttt{app.RxAnalysisData}
+
+\State Check whether a received signal is present; otherwise abort with a user-facing message
+\State Assemble the processing parameter structure \texttt{procParam} from GUI state
+\Statex \hspace{1em} (OFDM parameters, antenna configuration, modulation, MIMO mode, estimator, equalizer, payload metadata)
+\If{EigenMode mode is selected}
+    \State Ensure that the precoder/decoder matrices from channel sounding are available
+    \State Attach $\mathbf{V}_1$ (and optionally $\mathbf{U}_1,\mathbf{S}_1$) to \texttt{procParam}
+\EndIf
+\State Call the generated waveform and audio I/O function to perform transmission and recording, storing the recorded signal in \texttt{procParam.rxSignal}
+\State Call the backend processing function \texttt{Signalverarbeitung\_app(procParam)}
+\State Store returned results in \texttt{app.RxAnalysisData}
+\State Update GUI elements (text preview, BER, and analysis buttons) based on the stored results
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Objective 3: End-to-end PHY pipeline for text transmission}
+\label{sec:algorithmic_design}
+
+Objective~3 consolidates the receiver-side PHY chain into a reproducible, inspectable workflow that turns a recorded multi-channel audio frame into a decoded ASCII text payload and a structured set of intermediate observables. The implementation is intentionally organized around a single data interface: the App Designer GUI assembles all required parameters and the recorded waveform into \texttt{procParam}, and the backend returns one analysis structure (\texttt{data}) that serves both payload reconstruction and teaching-oriented visualization.
+
+\subsubsection{Processing contract and data interface (\texorpdfstring{\texttt{procParam} $\rightarrow$ \texttt{data}}{procParam -> data})}
+\label{sec:phy_contract_final}
+
+The PHY backend is entered through \texttt{Signalverarbeitung\_app(procParam)}. In the current build, the payload type is text-only: the function explicitly checks \texttt{procParam.DatenTyp == "Text"} and processes the recording accordingly. All parameters needed by the receiver (OFDM dimensions, antenna counts, frequencies, framing metadata) are passed explicitly through \texttt{procParam} and mapped into the local structures \texttt{params} and \texttt{channel}. The receiver output is returned as a single structure \texttt{data}, which contains both decoded payload results and intermediate PHY data needed for analysis plots (synchronization metrics, CTF/CIR, equalized symbols).
+
+\paragraph{Receiver pipeline overview (implementation-level pseudocode).}
+Algorithm~\ref{alg:rx_top} summarizes the executed steps and the concrete function boundaries used in the implementation.
+
+\begin{algorithm}[t]
+\caption{End-to-end text receiver pipeline (\texttt{Signalverarbeitung\_app})}
+\label{alg:rx_top}
+\begin{algorithmic}[1]
+\Require \texttt{procParam} with fields \texttt{rxSignal}, \texttt{iNfft}, \texttt{iNg}, \texttt{iNb}, \texttt{iNoTxAnt}, \texttt{iNoRxAnt}, \texttt{iNoBlocks}, \texttt{iNewNoBlocks}, \texttt{iNoSubBlocks}, \texttt{iModOrd}, \texttt{fBBFreq}, \texttt{fCarrFreq}, \texttt{fs}, \texttt{mimoMode}, and text metadata.
+\Ensure \texttt{data} containing decoded \texttt{text}, BER metrics, and PHY observables.
+
+\State Assert(\texttt{procParam.DatenTyp} is \texttt{"Text"})
+\State Build \texttt{params} and \texttt{channel} structs from \texttt{procParam}
+\State \texttt{[rxBits, data] = AnalyzeRxSig\_app(procParam.rxSignal$^\top$, params, channel)}
+\State Byte-align \texttt{rxBits} and decode ASCII via \texttt{bits2text\_app}
+\State Compute BER versus reference text via \texttt{bitFehlerRaten\_app}
+\State Return \texttt{data} (including \texttt{MetricData}, \texttt{channelUeb}, \texttt{channelimpuls}, \texttt{mDataRxEq})
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Receiver front-end: baseband conversion, timing, and OFDM extraction}
+\label{sec:rx_frontend_final_clean}
+
+The function \texttt{AnalyzeRxSig\_app} implements a shared OFDM front-end for all supported MIMO modes. Each recorded microphone channel is independently downconverted from passband to complex baseband using \texttt{DeModulateSignal\_app}. Since resampling and filtering may produce slight length differences across channels, the implementation enforces a common processing length by truncating all channels to the length of the first processed stream.
+
+Timing synchronization is performed per microphone channel using a Schmidl--Cox metric computed by \texttt{EstFrameStart\_app}. The receiver selects the earliest detected start index across channels and uses it as the global cut point for block extraction. The full metric traces are retained as \texttt{MetricData} for GUI inspection.
+
+After timing, the baseband streams are segmented into OFDM blocks of length \texttt{iNb=iNfft+iNg} and the cyclic prefix is removed. The resulting array \texttt{mFrameRxNoCP} has dimension $[N_{\mathrm{FFT}} \times N_{\mathrm{blocks}} \times N_r]$ and is passed to the mode-specific receiver function.
+
+\paragraph{Schmidl--Cox timing and coarse CFO estimate (code-faithful model).}
+In \path{EstFrameStart\_app}, the sync symbol has length $iNfft=2L$ and consists of two identical halves. For each candidate delay $d$, the implementation computes
+\begin{align}
+P(d) &= \sum_{n=0}^{L-1} r[d+n]^*\, r[d+n+L],\\
+R(d) &= \sum_{n=0}^{L-1} \left(|r[d+n]|^2 + |r[d+n+L]|^2\right),\\
+M(d) &= \frac{|P(d)|^2}{R(d)^2+\varepsilon},
+\end{align}
+and selects the frame start as $d^\star = \arg\max_d M(d)$. The coarse carrier-frequency offset estimate is obtained from the phase of $P(d^\star)$:
+\begin{equation}
+\hat{f}_{\mathrm{CFO}} = \frac{\angle P(d^\star)}{2\pi L},
+\end{equation}
+where the returned quantity is a normalized offset in cycles per sample, consistent with the implementation.
+
+\paragraph{Timing front-end (implementation-level pseudocode).}
+Algorithm~\ref{alg:sync_frontend} reflects the executed control flow in \texttt{AnalyzeRxSig\_app}.
+
+\begin{algorithm}[t]
+\caption{Front-end synchronization and OFDM block extraction (\texttt{AnalyzeRxSig\_app})}
+\label{alg:sync_frontend}
+\begin{algorithmic}[1]
+\Require \texttt{rxFrame} $[N_r \times N_{\mathrm{samp}}]$, \texttt{params} (\texttt{iNfft,iNg,iNb,fBBFreq,fDACFreq,fCarrFreq}), \texttt{iNewNoBlocks}
+\Ensure \texttt{mFrameRxNoCP} $[N_{\mathrm{FFT}} \times N_{\mathrm{blocks}} \times N_r]$ and \texttt{MetricData} per channel
+
+\For{$r=1$ to $N_r$}
+  \State \texttt{bb(r,:) = DeModulateSignal\_app(rxFrame(r,:), fBBFreq, fDACFreq, fCarrFreq)}
+\EndFor
+\For{$r=1$ to $N_r$}
+  \State \texttt{[start(r), cfo(r), metric(r)] = EstFrameStart\_app(bb(r,:), iNfft, iNg)}
+\EndFor
+\State \texttt{iFrSync = min(start(isfinite(start)))}
+\State \texttt{iFrStart = clamp(iFrSync + iNfft - safetyMargin)}
+\State Determine \texttt{iNewNoBlocks} from available samples
+\State Cut \texttt{iNewNoBlocks} blocks of length \texttt{iNb}, reshape to \texttt{mFrameRx} $[iNb \times iNewNoBlocks \times N_r]$
+\State Remove CP: \texttt{mFrameRxNoCP = mFrameRx(iNg+1:end,:,:)}
+\State Return \texttt{mFrameRxNoCP} and \texttt{MetricData}
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Training structure and per-subframe parsing for spatial multiplexing and V-BLAST}
+\label{sec:framing_parsing_clean}
+
+For spatial multiplexing and V-BLAST, the receiver expects a repeated subframe structure in which $N_t$ dedicated preamble OFDM symbols are placed before each group of \texttt{iNoSubBlocks} data symbols. This time-multiplexed sounding design enables a direct per-link channel estimate: during the preamble symbol associated with transmit antenna $t$, only that stream carries the known training symbol, so the observed spectrum at each microphone corresponds to a single SISO link.
+
+In \texttt{SM\_VBLAST\_Rx\_app}, preambles are extracted into \texttt{mPreambleRx} with dimension $[N_{\mathrm{FFT}} \times N_{\mathrm{subframes}} \times N_r \times N_t]$, while data blocks are collected into \texttt{mDataRx} for subsequent FFT and detection.
+
+\subsubsection{Training-based channel estimation used in the receiver (ZF/LS via preamble division)}
+\label{sec:chest_zf_clean}
+
+Channel estimation is performed in the frequency domain using a deterministic training spectrum derived from \texttt{ChuSeq(iNfft)}. Let $X_{\mathrm{p}}[k]$ denote the known preamble spectrum on subcarrier $k$. Under time-multiplexed sounding, the received preamble on microphone $r$ when transmit antenna $t$ is active can be written as
+\begin{equation}
+Y_{r,t}[k] = H_{r,t}[k]\,X_{\mathrm{p}}[k] + N_{r,t}[k].
+\end{equation}
+The implemented estimator corresponds to a least-squares / zero-forcing inversion on each subcarrier:
+\begin{equation}
+\hat{H}_{r,t}[k] = \frac{Y_{r,t}[k]}{X_{\mathrm{p}}[k]}.
+\label{eq:zf_ls_clean}
+\end{equation}
+The resulting channel transfer functions are stored as \texttt{channelUeb}. For time-domain inspection, the receiver computes
+\begin{equation}
+\hat{h}_{r,t}[n] = \sqrt{N_{\mathrm{FFT}}}\,\mathrm{IFFT}\{\hat{H}_{r,t}[k]\},
+\end{equation}
+and stores the impulse responses as \texttt{channelimpuls}. Both representations are visualized in the GUI via the CIR/CTF analysis button.
+
+\subsubsection{Noise power and SNR proxy from the trailing blocks}
+\label{sec:snr_proxy_clean}
+
+To parameterize linear detection, the receiver derives a scalar SNR proxy from a noise-only region. The implementation selects a fixed number of trailing OFDM blocks (up to the last 10) as \texttt{mZeroRx} and estimates per-subcarrier noise power by averaging the squared magnitude across these blocks and across microphones. This produces the scalar \texttt{iSNR}, which is subsequently used as the regularization strength in MMSE detection.
+
+\subsubsection{Per-subcarrier MMSE detection and optional decision-directed phase tracking}
+\label{sec:mmse_detect_clean}
+
+After FFT of the received data blocks, detection is performed independently on each subcarrier using the estimated MIMO channel. For subcarrier $k$ in a given subframe, the receiver forms the channel matrix $\hat{\mathbf{H}}[k]\in\mathbb{C}^{N_r\times N_t}$ from \texttt{channelUeb} and applies linear MMSE detection:
+\begin{equation}
+\hat{\mathbf{x}}[k] =
+\left(\hat{\mathbf{H}}^{\mathrm{H}}[k]\hat{\mathbf{H}}[k] + \frac{1}{\texttt{iSNR}}\,\mathbf{I}\right)^{-1}
+\hat{\mathbf{H}}^{\mathrm{H}}[k]\,\mathbf{y}[k].
+\label{eq:mmse_clean}
+\end{equation}
+The equalized symbol tensor is stored as \texttt{mDataRxEq} with dimension $[N_t \times N_{\mathrm{FFT}} \times N_{\mathrm{blocks}}]$ and directly feeds constellation/EVM visualization.
+
+To stabilize residual common phase rotation, an optional decision-directed phase tracker is applied per transmit stream. Hard symbol decisions are used to construct reference symbols, and a phase estimate is obtained from the argument of the correlation sum. The estimate is smoothed by a first-order recursion and compensated on the equalized symbols.
+
+\paragraph{Subcarrier-wise MMSE detection (implementation-level pseudocode).}
+Algorithm~\ref{alg:mmse_loop} captures the core loop in \texttt{SM\_VBLAST\_Rx\_app} for the spatial multiplexing path.
+
+\begin{algorithm}[t]
+\caption{Per-subcarrier MMSE detection in spatial multiplexing (\texttt{SM\_VBLAST\_Rx\_app})}
+\label{alg:mmse_loop}
+\begin{algorithmic}[1]
+\Require \texttt{mDataRxFreq} $[N_r \times N_{\mathrm{FFT}} \times N_{\mathrm{blocks}}]$, \texttt{mCTF} $[N_{\mathrm{FFT}} \times N_{\mathrm{subframes}} \times N_r \times N_t]$, scalar \texttt{iSNR}
+\Ensure \texttt{mDataRxEq} $[N_t \times N_{\mathrm{FFT}} \times N_{\mathrm{blocks}}]$
+
+\For{each subframe $s$}
+  \For{each data block $b$ in subframe $s$}
+    \For{each subcarrier $k=1\ldots N_{\mathrm{FFT}}$}
+      \State $\hat{\mathbf{H}} \leftarrow \texttt{squeeze(mCTF(k,s,:,:))}$ \Comment{$[N_r\times N_t]$}
+      \State $\mathbf{A} \leftarrow \hat{\mathbf{H}}^{\mathrm{H}}\hat{\mathbf{H}} + \mathbf{I}\cdot(1/\texttt{iSNR})$
+      \State $\hat{\mathbf{x}} \leftarrow \sqrt{N_t}\,\mathbf{A}^{-1}\hat{\mathbf{H}}^{\mathrm{H}}\,\mathbf{y}$ \Comment{$\mathbf{y}=\texttt{mDataRxFreq(:,k,b)}$}
+      \State \texttt{mDataRxEq(:,k,b) $\leftarrow \hat{\mathbf{x}}$}
+    \EndFor
+  \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Symbol demapping and ASCII reconstruction}
+\label{sec:text_recovery_clean}
+
+Finally, the receiver serializes the detected symbols and recovers bits in a text-specific format: the first \texttt{len\_cInfoBits} positions are demapped as BPSK header bits, and the remaining positions are demapped as $M$-QAM payload bits using the configured modulation order \texttt{iModOrd}. The bitstream is byte-aligned and converted to ASCII in \texttt{bits2text\_app}. BER is computed by comparing the decoded text against the original reference payload passed to the receiver.
+
+\subsubsection{Stored observables for GUI-based analysis}
+\label{sec:observability_clean}
+
+Throughout the chain, the receiver retains intermediate observables in the analysis structure returned to the GUI. In particular, synchronization traces (\texttt{MetricData}), channel estimates (CTF/CIR), and equalized symbols are stored explicitly. This design allows the GUI to provide targeted analysis views (synchronization plots, CIR/CTF inspection, rank-related measures, constellation and EVM) without rerunning the full processing chain.
+
+\subsection{Chapter summary}
+\label{sec:method_summary}
+
+This chapter has described the realization of the demonstrator as a reproducible end-to-end acoustic MIMO--OFDM link. The presentation covered the system-level software architecture, the GUI-to-PHY parameter interface, and the detailed design of the transmit and receive processing chains, including training-based channel estimation and per-subcarrier detection for different MIMO modes.
+
+In addition to enabling reliable text payload recovery, the implementation intentionally exposes and stores intermediate physical-layer observables, such as synchronization metrics, estimated channel impulse and transfer functions, equalized symbols, and derived quality indicators. These observables provide direct insight into the internal behavior of the system and form the empirical basis for subsequent evaluation.
+
+Building on this implementation, Chapter~4 presents representative measurement results obtained with the developed demonstrator. The reported results visualize the behavior of the acoustic MIMO--OFDM link under practical operating conditions and serve as the foundation for the in-depth discussion and interpretation presented in Chapter~5.
