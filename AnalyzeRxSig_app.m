@@ -358,4 +358,6 @@ function [mEmpfDataBits, data] = SM_VBLAST_Rx_app(mFrameRxNoCP, params, channel,
     data.channelimpuls  = mCIR;
     data.mDataRxEq    = mDataRxEq;
     data.AnzSubFrames = AnzSubFrames;
+    data.iSNR = iSNR;
+    data.vSNRperSC = vSNRperSCperBl(:);
 end
