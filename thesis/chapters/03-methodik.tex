@@ -90,9 +90,9 @@ This design decision directly supports reproducible experiments: once the physic
 \label{sec:streaming}
 
 Audio playback and recording are executed using frame-based streaming to the device. The transmit waveform
-$\mathbf{x}_{\mathrm{tx}} \in \mathbb{R}^{N_{\mathrm{samples}} \times N_T}$
+$\mathbf{x}_{\mathrm{tx}} \in \mathbb{R}^{N_{\mathrm{samples}} \times N_{\mathrm{T}}}$
 is segmented into contiguous blocks of length $L$ and passed to \path{audioPlayerRecorder} in a loop. Each I/O call returns the recorded frame
-$\mathbf{y}_{\mathrm{rx}} \in \mathbb{R}^{L \times N_R}$,
+$\mathbf{y}_{\mathrm{rx}} \in \mathbb{R}^{L \times N_{\mathrm{R}}}$,
 together with underrun/overrun indicators. These events occur if the host system cannot deliver or acquire audio data at the required rate, a known effect in non-real-time audio processing \cite{mathworks_apr,mathworks_audio_buffering}. In the demonstrator, underruns and overruns are surfaced via warnings but do not abort the experiment, reflecting the teaching-oriented goal of maintaining continuity while still making I/O quality visible.
 
 To support development without guaranteed access to the physical device, \path{runScarlettMimoIO} includes a fallback path: if the device cannot be opened, the system switches to an ideal loopback in which the receive buffer is filled by copying the transmitted channels (up to \path{min(Nt,Nr)}). This ``simulation mode'' keeps the end-to-end software pipeline executable and enables debugging of framing, synchronization, and receiver visualization without hardware dependencies. In the App Designer workflow, the device-selection logic is encapsulated (e.g., \path{app.getAudioDeviceName}), and the transmission callback reports whether the real device or fallback mode was used.
@@ -201,8 +201,8 @@ For EigenMode operation, channel-dependent matrices obtained from the sounding p
 \hline
 Field & Description \\
 \hline
-\texttt{rxSignal} & Recorded signal matrix $[N_\text{samp} \times N_R]$ \\
-\texttt{fs} & Sampling rate ($f_s$) \\
+\texttt{rxSignal} & Recorded signal matrix $[N_\text{samp} \times N_{\mathrm{R}}]$ \\
+\texttt{fs} & Sampling rate ($f_{\mathrm{s}}$) \\
 \texttt{iNfft,iNg,iNb} & OFDM parameters (FFT size, CP length, block length) \\
 \texttt{iNoTxAnt,iNoRxAnt} & Number of transmit and receive channels \\
 \texttt{iModOrd} & Modulation order (bits per symbol) \\
@@ -300,19 +300,19 @@ Algorithm~\ref{alg:sync_frontend} reflects the executed control flow in \texttt{
 \caption{Front-end synchronization and OFDM block extraction (\texttt{AnalyzeRxSig\_app})}
 \label{alg:sync_frontend}
 \begin{algorithmic}[1]
-\Require \texttt{rxFrame} $[N_r \times N_{\mathrm{samp}}]$, \texttt{params} (\texttt{iNfft,iNg,iNb,fBBFreq,fDACFreq,fCarrFreq}), \texttt{iNewNoBlocks}
-\Ensure \texttt{mFrameRxNoCP} $[N_{\mathrm{FFT}} \times N_{\mathrm{blocks}} \times N_r]$ and \texttt{MetricData} per channel
+\Require \texttt{rxFrame} $[N_r\times N_{\mathrm{samp}}]$, \texttt{params} (\texttt{iNfft,iNg,iNb,fBBFreq,fDACFreq,fCarrFreq}), \texttt{iNewNoBlocks}
+\Ensure \texttt{mFrameRxNoCP} $[N_{\mathrm{FFT}} \times N_{\mathrm{blocks}} \times N_{r}]$ and \texttt{MetricData} per channel
 
-\For{$r=1$ to $N_r$}
+\For{$r=1$ to $N_{r}$}
   \State \texttt{bb(r,:) = DeModulateSignal\_app(rxFrame(r,:), fBBFreq, fDACFreq, fCarrFreq)}
 \EndFor
-\For{$r=1$ to $N_r$}
+\For{$r=1$ to $N_{r}$}
   \State \texttt{[start(r), cfo(r), metric(r)] = EstFrameStart\_app(bb(r,:), iNfft, iNg)}
 \EndFor
 \State \texttt{iFrSync = min(start(isfinite(start)))}
 \State \texttt{iFrStart = clamp(iFrSync + iNfft - safetyMargin)}
 \State Determine \texttt{iNewNoBlocks} from available samples
-\State Cut \texttt{iNewNoBlocks} blocks of length \texttt{iNb}, reshape to \texttt{mFrameRx} $[iNb \times iNewNoBlocks \times N_r]$
+\State Cut \texttt{iNewNoBlocks} blocks of length \texttt{iNb}, reshape to \texttt{mFrameRx} $[iNb \times iNewNoBlocks \times N_{r}]$
 \State Remove CP: \texttt{mFrameRxNoCP = mFrameRx(iNg+1:end,:,:)}
 \State Return \texttt{mFrameRxNoCP} and \texttt{MetricData}
 \end{algorithmic}

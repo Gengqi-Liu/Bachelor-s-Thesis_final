@@ -31,9 +31,9 @@ The fundamental idea of multicarrier transmission is to decompose a wideband, fr
 
 In OFDM systems, the subcarrier spacing $\Delta f$ is chosen as
 \begin{equation}
-\Delta f = \frac{1}{T_s},
+\Delta f = \frac{1}{T_{\mathrm{s}}},
 \end{equation}
-where $T_s$ denotes the useful OFDM symbol duration. This choice ensures orthogonality among the subcarriers under ideal synchronization conditions. To preserve subcarrier orthogonality in the presence of multipath propagation, a cyclic prefix (CP) is inserted at the beginning of each OFDM symbol. If the CP length is greater than or equal to the maximum channel delay spread, linear convolution with the channel impulse response is transformed into circular convolution. As a result, the frequency-domain channel matrix becomes diagonal, enabling simple one-tap equalization on each subcarrier \cite{haring_ofdm_lecture,nee2000ofdm}.
+where $T_{\mathrm{s}}$ denotes the useful OFDM symbol duration. This choice ensures orthogonality among the subcarriers under ideal synchronization conditions. To preserve subcarrier orthogonality in the presence of multipath propagation, a cyclic prefix (CP) is inserted at the beginning of each OFDM symbol. If the CP length is greater than or equal to the maximum channel delay spread, linear convolution with the channel impulse response is transformed into circular convolution. As a result, the frequency-domain channel matrix becomes diagonal, enabling simple one-tap equalization on each subcarrier \cite{haring_ofdm_lecture,nee2000ofdm}.
 
 In discrete-time baseband modeling, the multipath channel is commonly represented as a finite-impulse-response (FIR) filter, also known as a tapped-delay-line model. This discrete-time representation provides the mathematical foundation for implementing OFDM systems using inverse discrete Fourier transform (IDFT) and discrete Fourier transform (DFT) operations, and it serves as the basis for most practical OFDM transmitters and receivers.
 
@@ -66,9 +66,9 @@ x[n] = \frac{1}{\sqrt{N}} \sum_{k=0}^{N-1} X[k]\,\mathrm{e}^{\mathrm{j}2\pi kn/N
 
 The normalization factor $1/\sqrt{N}$ ensures that the average signal power is preserved during the transformation. In practice, the IDFT operation is efficiently implemented using the inverse fast Fourier transform (IFFT).
 
-An appropriate choice of subcarrier spacing ensures orthogonality among the subcarriers. Let $T_s$ denote the useful OFDM symbol duration. The subcarrier spacing is then defined as
+An appropriate choice of subcarrier spacing ensures orthogonality among the subcarriers. Let $T_{\mathrm{s}}$ denote the useful OFDM symbol duration. The subcarrier spacing is then defined as
 \begin{equation}
-\Delta f = \frac{1}{T_s}.
+\Delta f = \frac{1}{T_{\mathrm{s}}}.
 \end{equation}
 Under ideal synchronization conditions, this choice ensures that the demodulation of one subcarrier does not introduce interference from other subcarriers.
 
@@ -229,7 +229,7 @@ Following time synchronization and cyclic-prefix removal, the received training 
 \end{equation}
 where $\mathbf{X}_{\mathrm{p}}[k]$ denotes the known training symbol(s) transmitted during the preamble phase. In the implemented framing structure, transmit channels are sounded sequentially, such that on a given training OFDM symbol only one transmit channel is active. For the link between transmit channel $t$ and receive channel $r$, this reduces to
 \begin{equation}
-Y_{r,t}[k] = H_{r,t}[k]\,X_{\mathrm{p}}[k] + N_{r,t}[k].
+Y_{r,tz  }[k] = H_{r,t}[k]\,X_{\mathrm{p}}[k] + N_{r,t}[k].
 \end{equation}
 
 A least-squares estimate of the channel coefficient is obtained by direct inversion of the known training symbol,

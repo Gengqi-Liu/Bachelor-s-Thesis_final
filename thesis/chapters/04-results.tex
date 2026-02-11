@@ -172,7 +172,7 @@ To characterize the spatial properties of the estimated acoustic MIMO channel, t
 
 The numerical rank of the channel matrix $H[k] \in \mathbb{C}^{N_r \times N_t}$ is computed for each subcarrier using a singular-value-based criterion with a fixed tolerance. The top-left panel of Figure~\ref{fig:results_rank_conditioning} shows the rank as a function of the subcarrier index.
 
-For the considered configuration with $N_t = 4$ transmit channels and $N_r = 8$ receive channels, the rank is equal to four for all subcarriers. This is further confirmed by the rank histogram shown in the top-right panel, where all observations fall into a single bin centered at rank four. No rank deficiency is observed across the evaluated bandwidth.
+For the considered configuration with $N_{\mathrm{T}} = 4$ transmit channels and $N_{\mathrm{R}} = 8$ receive channels, the rank is equal to four for all subcarriers. This is further confirmed by the rank histogram shown in the top-right panel, where all observations fall into a single bin centered at rank four. No rank deficiency is observed across the evaluated bandwidth.
 
 \subsubsection{Minimum singular value and condition-number proxy}
 \label{sec:results_conditioning}
@@ -209,7 +209,7 @@ In text mode, the reconstructed payload is formed by converting the recovered bi
 
 When a reference payload is available (i.e., the transmitted text is stored alongside the run), the demonstrator computes the bit error count and BER using \texttt{bitFehlerRaten\_app}. For text payloads, the function converts both the transmitted and reconstructed strings to 8-bit ASCII sequences via \texttt{de2bi(.,8)}, reshapes them into a linear bitstream, and then applies \texttt{biterr} on the common prefix length:
 \[
-\mathrm{BER}=\frac{N_{\mathrm{err}}}{N_{\mathrm{comp}}}, \qquad N_{\mathrm{comp}}=\min\{N_{\mathrm{tx}},N_{\mathrm{rx}}\}.
+\mathrm{BER}=\frac{N_{\mathrm{err}}}{N_{\mathrm{comp}}}, \qquad N_{\mathrm{comp}}=\min\{N_{\mathrm{T}},N_{\mathrm{R}}\}.
 \]
 The resulting values are presented in the GUI via two numeric indicators (bit error count and BER). Figure~\ref{fig:results_ber_ui} shows an example of this UI output for a representative run in which the displayed values are zero.
 
@@ -235,7 +235,7 @@ For rapid inspection and teaching-oriented demonstrations, the GUI provides a co
         Metric & Value \\
         \hline
         $N_{\mathrm{FFT}}$ & 128 \\
-        $N_g$ (CP length) & 256 \\
+        $N_{\mathrm{g}}$ (CP length) & 256 \\
         Modulation ($M$) & 2 \\
         $N_{\mathrm{T}}$ / $N_{\mathrm{R}}$ & 4T8R \\
         Frame start used & 1304 \\
